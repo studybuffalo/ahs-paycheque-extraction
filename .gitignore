@@ -3,10 +3,6 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
-#  Reports
-# results/*
-# !results/.gitkeep
-
 # Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
@@ -18,3 +14,12 @@ __pycache__/
 !.vscode/launch.json
 !.vscode/extensions.json
 *.code-workspace
+
+# Environment Files
+*.env
+!.*.env
+
+#  Reports
+# results/*
+# !results/.gitkeep
+

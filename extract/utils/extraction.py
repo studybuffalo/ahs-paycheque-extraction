@@ -1769,7 +1769,9 @@ class PaychequeData:
                 'number',
             ))
         except AttributeError:
-            extract_data.append(['Next Year', 0, 'number'])
+            extract_data.append(
+                {'name': 'Next Year', 'value': 0, 'data_type': 'number'}
+            )
 
         return [extract_data]
 

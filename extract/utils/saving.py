@@ -87,7 +87,7 @@ def save_data(data, config, log):
                 'Pay End Date',
                 'Advice Number',
                 'Advice Date',
-                'Description	Current - Rate',
+                'Description',
                 'Current - Rate',
                 'Current - Hours',
                 'Current - Earnings',

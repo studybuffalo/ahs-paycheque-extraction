@@ -256,17 +256,34 @@ class PaychequeData:
         instances = self.page.search_for('Quebec')
         anchors['quebec'] = self._parse_coordinates(instances)
 
-        instances = self.page.search_for('Net Claim Amount:')
-        anchors['net_claim_amount'] = self._parse_coordinates(instances)
+        # Handling for older file versions that used different labels
+        try:
+            instances = self.page.search_for('Net Claim Amount:')
+            anchors['net_claim_amount'] = self._parse_coordinates(instances)
+        except IndexError:
+            instances = self.page.search_for('Net Claim Amt.:')
+            anchors['net_claim_amount'] = self._parse_coordinates(instances)
 
-        instances = self.page.search_for('Special Letters:')
-        anchors['special_letters'] = self._parse_coordinates(instances)
+        try:
+            instances = self.page.search_for('Special Letters:')
+            anchors['special_letters'] = self._parse_coordinates(instances)
+        except IndexError:
+            instances = self.page.search_for('Spcl. Letters:')
+            anchors['special_letters'] = self._parse_coordinates(instances)
 
-        instances = self.page.search_for('Addl. Percent:')
-        anchors['additional_percent'] = self._parse_coordinates(instances)
+        try:
+            instances = self.page.search_for('Addl. Percent:')
+            anchors['additional_percent'] = self._parse_coordinates(instances)
+        except IndexError:
+            instances = self.page.search_for('Addl. Pct.:')
+            anchors['additional_percent'] = self._parse_coordinates(instances)
 
-        instances = self.page.search_for('Addl. Amount:')
-        anchors['additional_amount'] = self._parse_coordinates(instances)
+        try:
+            instances = self.page.search_for('Addl. Amount:')
+            anchors['additional_amount'] = self._parse_coordinates(instances)
+        except IndexError:
+            instances = self.page.search_for('Addl. Amt.:')
+            anchors['additional_amount'] = self._parse_coordinates(instances)
 
         # Calculate the relevant extraction coordinates
         quebec_left = anchors['quebec'].left - 5
@@ -784,8 +801,15 @@ class PaychequeData:
         instances = self.page.search_for('YTD', clip=search_area.rect)
         anchors['ytd'] = self._parse_coordinates(instances)
 
-        instances = self.page.search_for('TOTAL:', clip=search_area.rect)
-        anchors['total'] = self._parse_coordinates(instances, 'bottom')
+
+        # Older versions did not include a "TOTAL" section, but  still has
+        # a "TAXABLE" label that can be used
+        try:
+            instances = self.page.search_for('TOTAL:', clip=search_area.rect)
+            anchors['total'] = self._parse_coordinates(instances, 'bottom')
+        except TypeError:
+            instances = self.page.search_for('TAXABLE', clip=search_area.rect)
+            anchors['total'] = self._parse_coordinates(instances, 'bottom')
 
         # Identify a secondary search area for rows
         row_search_area = Coordinates([
@@ -799,7 +823,12 @@ class PaychequeData:
         row_anchors = [self._parse_coordinates([instance]) for instance in instances]
 
         # Pop off the last row, as this will be the "total" row
-        row_anchors.pop()
+        #   In some cases with older PDFs, there is no data here, so need
+        #   to handle this case.
+        try:
+            row_anchors.pop()
+        except IndexError:
+            pass
 
         # Collect a list of coordinates for each row entry
         extract_coords = []

@@ -2,6 +2,7 @@
 import logging
 import os
 from pathlib import Path
+import shutil
 
 from dotenv import find_dotenv, load_dotenv
 
@@ -11,9 +12,9 @@ def generate_config():
     load_dotenv(find_dotenv(filename='config.env'))
 
     config = {
-        'pdf_dir_path': Path(os.getenv('PDF_DIR_PATH')),
-        'excel_file_path': Path(os.getenv('EXCEL_FILE_PATH')),
-        'excel_backup_path': Path(os.getenv('EXCEL_BACKUP_PATH')),
+        'pdf_extract_path': Path(os.getenv('PDF_EXTRACT_PATH')),
+        'pdf_move_path': Path(os.getenv('PDF_MOVE_PATH')),
+        'data_path': Path(os.getenv('DATA_PATH')),
         'log_level': int(os.getenv('LOG_LEVEL', '20')),
         'save_coordinates': os.getenv('SAVE_COORDINATES', False) == 'True',
     }
@@ -38,63 +39,17 @@ def setup_logging(config):
 
     return log
 
-def display_files(files, start_index):
-    """Display a paginated list of files."""
-    end_index = start_index + 5
+def move_pdf(file, config, log):
+    """Moves PDF to the configured path."""
+    move_path = Path(config['pdf_move_path'], file.name)
 
-    for i, file in enumerate(files[start_index:end_index], start=start_index + 1):
-        print(f'{i:<2} | {file}')
-
-    return start_index, end_index
-
-def identify_pdf(config, log):
-    """Identifies which PDF to extract."""
-    # Collects all PDF files in the provided directory
-    pdf_files = [f for f in os.listdir(config['pdf_dir_path']) if f.endswith('.pdf')]
-
-    # Sorts files in descending order
-    pdf_files.sort(reverse=True)  # Sort files in descending order
-
-    # Notifies user that no PDF files are found
-    if not pdf_files:
-        print('No PDF files found in directory. Confirm the correct directory is listed in the config file.')
-        return
-
-    start_index = 0
-
-    while True:
-        # User command options
-        print('Enter the number to select the desired file. You may also enter "n" for the next page, "p" for previous page, or "q" to quit.')
-        current_start, current_end = display_files(pdf_files, start_index)
-        command = input('Selection: ').strip().lower()
-
-        if command.isdigit():
-            # Select file by number
-            selection = int(command)
-            if current_start < selection <= current_end:
-                file = Path(config['pdf_dir_path'], pdf_files[selection - 1])
-                log.info(f'File selected for extraction: {file}')
-
-                return file
-            else:
-                print('Invalid selection, please try again.')
-
-        elif command == 'n':
-            # Go to the next page
-            if current_end < len(pdf_files):
-                start_index = current_end
-            else:
-                print('This is the last page, there are no further files.')
-
-        elif command == 'p':
-            # Go to the previous page
-            start_index = max(0, len(pdf_files) - start_index)
-
-            if start_index == 0:
-                print('This is the first page, there are no earlier files.')
-
-        elif command == 'q':
-            # Quit the program
-            return None
-        else:
-            print('Invalid command, please try again.')
+    try:
+        shutil.move(file, move_path)
+        log.info(f'  PDF moved to {move_path}')
+    except IOError:
+        try:
+            os.remove(move_path)
+            shutil.move(file, move_path)
+            log.info(f'  PDF moved to {move_path} (existing file overwritten)')
+        except PermissionError as e:
+            log.info(f'  Unable to move PDF to {move_path}: {e}')

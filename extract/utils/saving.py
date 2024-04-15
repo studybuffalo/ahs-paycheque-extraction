@@ -1,90 +1,275 @@
 """Saves extracted data to an Excel file."""
-import shutil
+import csv
+import os
+from pathlib import Path
 
-import openpyxl
-from openpyxl.styles import NamedStyle
 
-def find_table(workbook, table_name):
-    """Identifies the worksheet containing the desired table."""
-    for worksheet in workbook.worksheets:
-        for table in worksheet.tables.values():
-            if table.name == table_name:
-                return table, worksheet
+def confirm_or_create_save_directories(config, log):
+    """Confirms the required save directories exist and creats them if needed."""
+    log.info(f'  Confirming or creating directories to save extracted data: {config['data_path']}')
+
+    required_directories = [
+        'Pay Cheque Details',
+        'Baseline Details',
+        'Tax Data',
+        'Hours and Earnings',
+        'Taxes',
+        'Before-Tax Deductions',
+        'After-Tax Deductions',
+        'Employer Paid Benefits',
+        'Gross and Net Pay',
+        'Vacation',
+        'Bank Balances',
+        'Advance Outstanding',
+        'Direct Deposit Distribution',
+        'Net Pay Distribution',
+        'Message'
+    ]
+
+    for directory in required_directories:
+        directory_path = Path(config['data_path'], directory)
+
+        if not directory_path.exists():
+            directory_path.mkdir(exist_ok=True)
 
 def save_data(data, config, log):
     """Saves extracted data to Excel file."""
-    log.info(f'Creating backup Excel file: {config['excel_backup_path']}')
-    shutil.copy(config['excel_file_path'], config['excel_backup_path'])
+    log.info('Saving Data')
 
-    log.info(f'Opening Excel file to save data: {config['excel_file_path']}')
-    workbook = openpyxl.load_workbook(config['excel_file_path'])
+    confirm_or_create_save_directories(config, log)
 
-    # Collection of styles
-    number_format = '0.00'
-    currency_format = '$0.00'
-    date_format = 'YYYY-MMM-DD'
+    # Dictionary mapping extracted data to required output details
+    dict_map = {
+        'paycheque_details': {
+            'folder_name': 'Pay Cheque Details',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+            ]
+        },
+        'baseline_details': {
+            'folder_name': 'Baseline Details',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'Employee ID',
+                'Department',
+                'Location',
+                'Job Title',
+                'Pay Rate',
+            ]
+        },
+        'tax_data': {
+            'folder_name': 'Tax Data',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'Federal - Net Claim Amount',
+                'Federal - Special Letters',
+                'Federal - Additional Percent',
+                'Federal - Additional Amount',
+                'Alberta - Net Claim Amount',
+                'Alberta - Special Letters',
+                'Alberta - Additional Percent',
+                'Alberta - Additional Amount',
+            ]
+        },
+        'hours_and_earnings': {
+            'folder_name': 'Hours and Earnings',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'Description	Current - Rate',
+                'Current - Rate',
+                'Current - Hours',
+                'Current - Earnings',
+                'YTD - Hours',
+                'YTD - Earnings',
+            ]
+        },
+        'taxes': {
+            'folder_name': 'Taxes',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'Description',
+                'Current',
+                'YTD',
+            ]
+        },
+        'before_tax_deductions': {
+            'folder_name': 'Before-Tax Deductions',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'Description',
+                'Current',
+                'YTD',
+            ]
+        },
+        'after_tax_deductions': {
+            'folder_name': 'After-Tax Deductions',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'Description',
+                'Current',
+                'YTD',
+            ]
+        },
+        'employer_paid_benefits': {
+            'folder_name': 'Employer Paid Benefits',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'Description',
+                'Current',
+                'YTD',
+            ]
+        },
+        'gross_and_net': {
+            'folder_name': 'Gross and Net Pay',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'Current - Total Gross',
+                'Current - CIT Taxable Gross',
+                'Current - Total Taxes',
+                'Current - Total Deductions',
+                'Current - Net Pay',
+                'YTD - Total Gross',
+                'YTD - CIT Taxable Gross',
+                'YTD - Total Taxes',
+                'YTD - Total Deductions',
+                'YTD - Net Pay',
+            ]
+        },
+        'vacation': {
+            'folder_name': 'Vacation',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'Current',
+                'Supplemental',
+                'Next Year',
 
-    # Dictionary outlining extracted data to table names
-    excel_key_dict = {
-        'paycheque_details': 'paycheque_details',
-        'baseline_details': 'baseline_details',
-        'tax_data': 'tax_data',
-        'hours_and_earnings': 'hours_and_earnings',
-        'taxes': 'taxes',
-        'before_tax_deductions': 'before_tax_deductions',
-        'after_tax_deductions': 'after_tax_deductions',
-        'employer_paid_benefits': 'employer_paid_benefits',
-        'gross_and_net': 'gross_and_net_pay',
-        'vacation': 'vacation',
-        'bank_balances': 'bank_balances',
-        'advance_outstanding': 'advance_outstanding',
-        'direct_deposit_distribution': 'direct_deposit_distribution',
-        'net_pay_distribution': 'net_pay_distribution',
-        'message': 'message',
+            ]
+        },
+        'bank_balances': {
+            'folder_name': 'Bank Balances',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'YTD OT Bank',
+                'YTD Sick Bank',
+                'YTD Stat Bank',
+                'YTD Float Bank',
+
+            ]
+        },
+        'advance_outstanding': {
+            'folder_name': 'Advance Outstanding',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'OS/Advance',
+            ]
+        },
+        'direct_deposit_distribution': {
+            'folder_name': 'Direct Deposit Distribution',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'Account Type',
+                'Deposit Amount',
+            ]
+        },
+        'net_pay_distribution': {
+            'folder_name': 'Net Pay Distribution',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'Advice Number Reference',
+                'Amount',
+            ]
+        },
+        'message': {
+            'folder_name': 'Message',
+            'headers': [
+                'Pay Begin Date',
+                'Pay End Date',
+                'Advice Number',
+                'Advice Date',
+                'Message',
+            ]
+        },
     }
 
     # Collect the paycheque details; these are applied to every table
     paycheque_details = data['paycheque_details'][0]
+    date_start = paycheque_details[0]['value'].strftime('%Y-%m-%d')
+    date_end = paycheque_details[1]['value'].strftime('%Y-%m-%d')
 
-    for dict_key, table_name in excel_key_dict.items():
-        log.info(f'  Adding data to table: {table_name}')
+    for key, item in dict_map.items():
+        csv_name = f'{item["folder_name"]} - {date_start} to {date_end}'
+        csv_path = Path(config['data_path'], item['folder_name'], f'{csv_name}.csv')
 
-        # Find required table
-        table, worksheet = find_table(workbook, table_name)
+        log.info(f'  Saving data to: {csv_path}')
 
-        # Calculate the next row
-        last_row = table.ref.split(":")[1][1:]  # Get the last row number, e.g., "5" from "A1:D5"
-        next_row = int(last_row) + 1
+        # Remove existing CSV if it exists
+        if csv_path.exists():
+            os.remove(csv_path)
 
-        # Append data row in the table
-        data_values = data[dict_key]
+        with open(csv_path, 'w', newline='') as file:
+            writer = csv.writer(file)
 
-        for row, item_data in enumerate(data_values, start=next_row):
-            log.debug('Adding data to row {row}')
+            # Write the header row
+            writer.writerow(item['headers'])
 
-            # Add paycheque details to all other tables
-            if dict_key != 'paycheque_details':
-                item_data = paycheque_details + item_data
+            # Organize the data for saving
+            save_data = []
 
-            for col, cell_data in enumerate(item_data, start=1):
-                cell = worksheet.cell(row=row, column=col)
-                cell.value = cell_data['value']
+            for row in data[key]:
+                row_data = []
 
-                if cell_data['data_type'] == 'number':
-                    cell.number_format = number_format
-                elif cell_data['data_type'] == 'currency':
-                    cell.number_format = currency_format
-                if cell_data['data_type'] == 'date':
-                    cell.number_format = date_format
+                # Add Paycheque details to all other groups of data
+                if key == 'paycheque_details':
+                    updated_row = row
+                else:
+                    updated_row = paycheque_details + row
 
-        # Update table dimensions to include new row
-        top_left, bottom_right = table.ref.split(':')
-        bottom_right_col, _ = openpyxl.utils.cell.coordinate_from_string(bottom_right)
-        new_bottom_right = f'{bottom_right_col}{row}'
-        new_range = f'{top_left}:{new_bottom_right}'
+                for cell in updated_row:
+                    row_data.append(cell['value'])
 
-        log.debug(f'Extending table range to {new_bottom_right}')
-        worksheet.tables[table_name].ref = new_range
+                save_data.append(row_data)
 
-    # Save the workbook
-    workbook.save(config['excel_file_path'])
+            # Write the data
+            writer.writerows(save_data)

@@ -656,7 +656,7 @@ class PaychequeData:
         total = {
             'description': 'Total',
             'current': Coordinates([
-                anchors['current'].right - 20,
+                anchors['current'].left - 20,
                 anchors['total'].top + 2,
                 anchors['current'].right + 2,
                 anchors['total'].bottom - 2,
@@ -752,7 +752,7 @@ class PaychequeData:
         total = {
             'description': 'Total',
             'current': Coordinates([
-                anchors['current'].right - 20,
+                anchors['current'].left - 20,
                 anchors['total'].top + 2,
                 anchors['current'].right + 2,
                 anchors['total'].bottom - 2,
@@ -857,7 +857,7 @@ class PaychequeData:
 
         total = {
             'current': Coordinates([
-                anchors['current'].right - 20,
+                anchors['current'].left - 20,
                 anchors['total'].top + 2,
                 anchors['current'].right + 2,
                 anchors['total'].bottom - 2,
@@ -1356,7 +1356,7 @@ class PaychequeData:
             value = value.date()
         elif data_type == 'currency' or data_type == 'number':
             # Strip out any non-number characters
-            value = re.sub(r'[^\d.]+', '', value)
+            value = re.sub(r'[^\d.\-]+', '', value)
 
             # If value is blank, sub in "0"
             if value == '':
